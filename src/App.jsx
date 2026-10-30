@@ -18,6 +18,12 @@ export default function App() {
   const [showNew, setShowNew] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [toast, setToast] = useState(null);
+  const [tab, setTabState] = useState(() => (location.hash === '#dovednosti' ? 'skills' : 'quests'));
+  const setTab = (t) => {
+    setTabState(t);
+    history.replaceState(null, '', t === 'skills' ? '#dovednosti' : location.pathname);
+    window.scrollTo(0, 0);
+  };
 
   useEffect(() => save(state), [state]);
   useEffect(() => {
@@ -50,35 +56,50 @@ export default function App() {
 
   return (
     <div className="app">
-      <Hero quests={active} />
-      <Heatmap quests={active} />
-
-      <div className="toolbar">
-        <div className="chips">
-          {cats.map((c) => (
-            <button key={c} className={`chip ${filter === c ? 'on' : ''}`} onClick={() => setFilter(c)}>
-              {c}
-            </button>
-          ))}
-        </div>
-        <button className="btn primary" onClick={() => setShowNew(true)}>+ Nový quest</button>
-      </div>
-
-      <div className="grid">
-        {visible.map((q) => (
-          <QuestCard key={q.id} q={q} onOpen={() => setOpenId(q.id)} />
-        ))}
-        {visible.length === 0 && (
-          <p className="empty">{showArchived ? 'Žádné archivované questy.' : 'Tady zatím nic není. Založ první quest.'}</p>
-        )}
-      </div>
-
-      <footer className="foot">
-        <button className="link" onClick={() => setShowArchived((v) => !v)}>
-          {showArchived ? '← Zpět na aktivní' : `Archiv (${archived.length})`}
+      <nav className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === 'quests'} className={tab === 'quests' ? 'on' : ''} onClick={() => setTab('quests')}>
+          📜 Questy
         </button>
-        <DataTools state={state} setState={setState} setToast={setToast} />
-      </footer>
+        <button role="tab" aria-selected={tab === 'skills'} className={tab === 'skills' ? 'on' : ''} onClick={() => setTab('skills')}>
+          ⚔️ Dovednosti
+        </button>
+      </nav>
+
+      {tab === 'skills' ? (
+        <SkillsView quests={active} onOpen={setOpenId} />
+      ) : (
+        <>
+          <Hero quests={active} />
+          <Heatmap quests={active} />
+
+          <div className="toolbar">
+            <div className="chips">
+              {cats.map((c) => (
+                <button key={c} className={`chip ${filter === c ? 'on' : ''}`} onClick={() => setFilter(c)}>
+                  {c}
+                </button>
+              ))}
+            </div>
+            <button className="btn primary" onClick={() => setShowNew(true)}>+ Nový quest</button>
+          </div>
+
+          <div className="grid">
+            {visible.map((q) => (
+              <QuestCard key={q.id} q={q} onOpen={() => setOpenId(q.id)} />
+            ))}
+            {visible.length === 0 && (
+              <p className="empty">{showArchived ? 'Žádné archivované questy.' : 'Tady zatím nic není. Založ první quest.'}</p>
+            )}
+          </div>
+
+          <footer className="foot">
+            <button className="link" onClick={() => setShowArchived((v) => !v)}>
+              {showArchived ? '← Zpět na aktivní' : `Archiv (${archived.length})`}
+            </button>
+            <DataTools state={state} setState={setState} setToast={setToast} />
+          </footer>
+        </>
+      )}
 
       {open && (
         <QuestDetail
@@ -266,6 +287,77 @@ function Heatmap({ quests }) {
         méně {[0, 1, 2, 3, 4].map((l) => <i key={l} className={`hm-cell h${l}`} />)} více
       </div>
     </section>
+  );
+}
+
+/* ---------- Dovednosti (RPG character sheet) ---------- */
+
+function SkillsView({ quests, onOpen }) {
+  const totalXP = quests.reduce((s, q) => s + questXP(q), 0);
+  const hero = levelInfo(totalXP);
+
+  const groups = {};
+  quests.forEach((q) => (groups[q.category] ||= []).push(q));
+  const sections = Object.entries(groups)
+    .map(([cat, qs]) => {
+      const xp = qs.reduce((s, q) => s + questXP(q), 0);
+      return {
+        cat, xp, level: levelInfo(xp).level,
+        skills: qs.map((q) => ({ q, xp: questXP(q), ...levelInfo(questXP(q)) }))
+          .sort((a, b) => b.xp - a.xp || a.q.name.localeCompare(b.q.name, 'cs')),
+      };
+    })
+    .sort((a, b) => b.xp - a.xp || a.cat.localeCompare(b.cat, 'cs'));
+
+  const best = [...quests].sort((a, b) => questXP(b) - questXP(a))[0];
+
+  return (
+    <div className="sheet">
+      <div className="sheet-head">
+        <div>
+          <p className="sheet-eyebrow">Character sheet</p>
+          <h2>Obskrupol</h2>
+          <p className="sheet-sub">{titleFor(hero.level)} dobrodruh</p>
+        </div>
+        <div className="sheet-lv">
+          <span>Úroveň</span>
+          <b>{hero.level}</b>
+          <div className="sheet-bar"><i style={{ width: `${hero.pct}%` }} /></div>
+          <small>{hero.into} / {hero.need} XP</small>
+        </div>
+      </div>
+
+      <div className="sheet-summary">
+        <span>Dovedností <b>{quests.length}</b></span>
+        <span>Celkem XP <b>{totalXP}</b></span>
+        {best && questXP(best) > 0 && <span>Nejsilnější <b>{best.icon} {best.name}</b></span>}
+      </div>
+
+      <div className="sheet-cols">
+        {sections.map((s) => (
+          <section key={s.cat} className="sheet-sec">
+            <h3>
+              <span>{s.cat}</span>
+              <span className="sec-lv">{s.level}</span>
+            </h3>
+            <ul>
+              {s.skills.map(({ q, level, pct }) => (
+                <li key={q.id}>
+                  <button onClick={() => onOpen(q.id)} title={`${titleFor(level)} · ${questXP(q)} XP`}>
+                    <span className="sk-icon">{q.icon}</span>
+                    <span className="sk-name">{q.name}</span>
+                    <span className="sk-dots" />
+                    <span className="sk-lv">{level}</span>
+                    <span className="sk-bar"><i style={{ width: `${pct}%` }} /></span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+        {sections.length === 0 && <p className="sheet-empty">Zatím žádné dovednosti.</p>}
+      </div>
+    </div>
   );
 }
 

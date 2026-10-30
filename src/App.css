@@ -205,3 +205,74 @@ li:hover .x { opacity: 1; }
   .heatmap { padding: 16px 14px 12px; }
   .hm-sum { margin-left: 0; width: 100%; }
 }
+
+/* ---------- Záložky ---------- */
+.tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+.tabs button {
+  background: none; border: none; padding: 10px 16px; margin-bottom: -1px;
+  font: 600 16px var(--serif); color: var(--muted); border-bottom: 2px solid transparent;
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+
+/* ---------- Character sheet ---------- */
+.sheet {
+  --gold: #d9b26a; --gold-dim: #8f7444; --stone: #1f1913; --stone-2: #2b231b; --bone: #efe2c4;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(217, 178, 106, 0.12), transparent 60%),
+    linear-gradient(180deg, var(--stone-2), var(--stone));
+  color: var(--bone);
+  border: 2px solid var(--gold-dim);
+  outline: 1px solid var(--gold-dim); outline-offset: 4px;
+  border-radius: 6px; padding: 28px; margin: 8px 4px 32px;
+  box-shadow: 0 10px 30px rgba(30, 20, 10, 0.35), inset 0 0 60px rgba(0, 0, 0, 0.45);
+}
+.sheet-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+.sheet-eyebrow { font: 500 11px var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin: 0 0 6px; }
+.sheet h2 { font-size: 36px; color: var(--bone); }
+.sheet-sub { margin: 4px 0 0; font: italic 16px var(--serif); color: var(--gold); }
+.sheet-lv { display: grid; justify-items: end; gap: 2px; min-width: 200px; }
+.sheet-lv span { font: 11px var(--mono); letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold-dim); }
+.sheet-lv b { font: 800 46px/1 var(--serif); color: var(--gold); text-shadow: 0 0 18px rgba(217, 178, 106, 0.35); }
+.sheet-lv small { font: 12px var(--mono); color: var(--gold-dim); }
+.sheet-bar { width: 100%; height: 6px; background: #120e0a; border: 1px solid var(--gold-dim); }
+.sheet-bar i, .sk-bar i { display: block; height: 100%; background: linear-gradient(90deg, #8f5a26, var(--gold)); }
+
+.sheet-summary {
+  display: flex; gap: 24px; flex-wrap: wrap; margin: 20px 0 24px; padding: 10px 0;
+  border-top: 1px solid var(--gold-dim); border-bottom: 1px solid var(--gold-dim);
+  font: 13px var(--mono); color: var(--gold-dim);
+}
+.sheet-summary b { color: var(--bone); font-weight: 500; margin-left: 4px; }
+
+.sheet-cols { columns: 2 320px; column-gap: 40px; }
+.sheet-sec { break-inside: avoid; margin-bottom: 26px; }
+.sheet-sec h3 {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font: 700 15px var(--serif); letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold);
+  padding-bottom: 6px; margin-bottom: 6px; border-bottom: 1px solid var(--gold-dim);
+}
+.sec-lv { font: 500 13px var(--mono); letter-spacing: 0; color: var(--gold-dim); }
+.sec-lv::before { content: 'Lv '; }
+.sheet-sec ul { list-style: none; margin: 0; padding: 0; }
+.sheet-sec li button {
+  width: 100%; display: grid; grid-template-columns: 26px auto 1fr auto; grid-template-rows: auto auto;
+  column-gap: 8px; align-items: baseline; text-align: left;
+  background: none; border: none; color: var(--bone); padding: 7px 6px 6px; border-radius: 3px;
+}
+.sheet-sec li button:hover, .sheet-sec li button:focus-visible {
+  background: rgba(217, 178, 106, 0.1); outline: none;
+}
+.sheet-sec li button:hover .sk-name { color: var(--gold); }
+.sk-icon { font-size: 16px; grid-row: span 2; align-self: center; }
+.sk-name { font: 16px var(--serif); }
+.sk-dots { border-bottom: 2px dotted var(--gold-dim); transform: translateY(-4px); }
+.sk-lv { font: 600 17px var(--mono); color: var(--gold); min-width: 2ch; text-align: right; }
+.sk-bar { grid-column: 2 / -1; height: 3px; background: #120e0a; margin-top: 4px; overflow: hidden; }
+.sheet-empty { color: var(--gold-dim); }
+
+@media (max-width: 640px) {
+  .sheet { padding: 20px 16px; margin: 6px 4px 24px; }
+  .sheet h2 { font-size: 28px; }
+  .sheet-lv { justify-items: start; }
+}
