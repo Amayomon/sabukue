@@ -51,6 +51,7 @@ export default function App() {
   return (
     <div className="app">
       <Hero quests={active} />
+      <Heatmap quests={active} />
 
       <div className="toolbar">
         <div className="chips">
@@ -124,14 +125,7 @@ function Hero({ quests }) {
   const totalXP = quests.reduce((s, q) => s + questXP(q), 0);
   const { level, into, need, pct } = levelInfo(totalXP);
 
-  const byDay = useMemo(() => {
-    const m = {};
-    quests.forEach((q) => {
-      q.entries.forEach((e) => (m[e.date] = (m[e.date] || 0) + e.xp));
-      q.goals.forEach((g) => g.doneAt && (m[g.doneAt] = (m[g.doneAt] || 0) + GOAL_XP));
-    });
-    return m;
-  }, [quests]);
+  const byDay = useMemo(() => activityByDay(quests), [quests]);
 
   // Série: kolik dní v řadě (končí dnes nebo včera) s nějakou aktivitou
   let streak = 0;
@@ -167,8 +161,6 @@ function Hero({ quests }) {
         <Stat n={totalXP} label="XP celkem" />
         <Stat n={quests.length} label="aktivních questů" />
       </div>
-
-      <Heatmap byDay={byDay} />
     </header>
   );
 }
@@ -177,31 +169,103 @@ const Stat = ({ n, label }) => (
   <div className="stat"><b>{n}</b><span>{label}</span></div>
 );
 
-function Heatmap({ byDay }) {
-  const weeks = 18;
-  const today = new Date();
-  const start = new Date(today);
-  const dow = (today.getDay() + 6) % 7; // pondělí = 0
-  start.setDate(today.getDate() - dow - (weeks - 1) * 7);
+function activityByDay(quests) {
+  const m = {};
+  quests.forEach((q) => {
+    q.entries.forEach((e) => (m[e.date] = (m[e.date] || 0) + e.xp));
+    q.goals.forEach((g) => g.doneAt && (m[g.doneAt] = (m[g.doneAt] || 0) + GOAL_XP));
+  });
+  return m;
+}
 
-  const cols = [];
-  for (let w = 0; w < weeks; w++) {
-    const cells = [];
-    for (let i = 0; i < 7; i++) {
+/* ---------- Roční heatmapa ---------- */
+
+const MONTHS = ['led', 'úno', 'bře', 'dub', 'kvě', 'čvn', 'čvc', 'srp', 'zář', 'říj', 'lis', 'pro'];
+const DAY_LABELS = ['po', '', 'st', '', 'pá', '', ''];
+const WEEKS = 53;
+
+function Heatmap({ quests }) {
+  const [sel, setSel] = useState('all');
+  const scrollRef = useRef(null);
+
+  const selected = quests.find((q) => q.id === sel);
+  const byDay = useMemo(
+    () => activityByDay(selected ? [selected] : quests),
+    [quests, selected],
+  );
+
+  // Na úzkém displeji odscrolluj na nejnovější týdny
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, []);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayIso = todayISO(today);
+  const start = new Date(today);
+  start.setDate(today.getDate() - ((today.getDay() + 6) % 7) - (WEEKS - 1) * 7);
+
+  const items = [];
+  let activeDays = 0;
+  let prevMonth = null;
+  for (let w = 0; w < WEEKS; w++) {
+    const monday = new Date(start);
+    monday.setDate(start.getDate() + w * 7);
+    if (monday.getMonth() !== prevMonth) {
+      // první týden zobrazeného rozsahu popiš jen pokud v něm ještě je místo
+      if (w > 0 || monday.getDate() <= 7) {
+        items.push(
+          <span key={`m${w}`} className="hm-month" style={{ gridColumn: w + 2, gridRow: 1 }}>
+            {MONTHS[monday.getMonth()]}
+          </span>,
+        );
+      }
+      prevMonth = monday.getMonth();
+    }
+    for (let d = 0; d < 7; d++) {
       const day = new Date(start);
-      day.setDate(start.getDate() + w * 7 + i);
+      day.setDate(start.getDate() + w * 7 + d);
+      if (day > today) continue;
       const iso = todayISO(day);
       const xp = byDay[iso] || 0;
-      const lvl = day > today ? -1 : xp === 0 ? 0 : xp < 20 ? 1 : xp < 50 ? 2 : xp < 100 ? 3 : 4;
-      cells.push(<i key={iso} className={`h${lvl}`} title={`${iso}: ${xp} XP`} />);
+      if (xp) activeDays++;
+      const lvl = xp === 0 ? 0 : xp < 20 ? 1 : xp < 50 ? 2 : xp < 100 ? 3 : 4;
+      items.push(
+        <i
+          key={iso}
+          className={`hm-cell h${lvl} ${iso === todayIso ? 'today' : ''}`}
+          style={{ gridColumn: w + 2, gridRow: d + 2 }}
+          title={`${day.toLocaleDateString('cs-CZ')}: ${xp ? `${xp} XP` : 'nic'}`}
+        />,
+      );
     }
-    cols.push(<div key={w} className="hcol">{cells}</div>);
   }
+
   return (
-    <div className="heat-wrap">
-      <div className="heat">{cols}</div>
-      <span className="mono small muted">posledních {weeks} týdnů</span>
-    </div>
+    <section className="heatmap">
+      <div className="hm-head">
+        <span className="hm-icon" aria-hidden>📅</span>
+        <select value={sel} onChange={(e) => setSel(e.target.value)} aria-label="Quest">
+          <option value="all">Všechny questy</option>
+          {quests.map((q) => (
+            <option key={q.id} value={q.id}>{q.icon} {q.name}</option>
+          ))}
+        </select>
+        <span className="mono small muted hm-sum">{activeDays} aktivních dní za poslední rok</span>
+      </div>
+      <div className="hm-scroll" ref={scrollRef}>
+        <div className="hm-grid" style={{ '--weeks': WEEKS }}>
+          {DAY_LABELS.map((l, i) => (
+            <span key={i} className="hm-day" style={{ gridColumn: 1, gridRow: i + 2 }}>{l}</span>
+          ))}
+          {items}
+        </div>
+      </div>
+      <div className="hm-legend mono small muted">
+        méně {[0, 1, 2, 3, 4].map((l) => <i key={l} className={`hm-cell h${l}`} />)} více
+      </div>
+    </section>
   );
 }
 
